@@ -1,0 +1,549 @@
+<meta charset="utf-8">
+<title>Arquitectura HelpDesk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #EEF2F6;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7FA;
+    --line: #C3CDD8;
+    --ink: #14202C;
+    --ink-2: #3B4B5C;
+    --muted: #5D6E80;
+    --core: #2456C7;
+    --org: #0B7A7C;
+    --usr: #6A3FC0;
+    --slate: #3A4A5C;
+    --on-head: #FFFFFF;
+    --warn-bg: #FFF7E0;
+    --warn-line: #D9B44A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1620; --surface: #16212E; --surface-2: #1B2837; --line: #33465A;
+      --ink: #E6EDF4; --ink-2: #B4C2D0; --muted: #8A9BAD;
+      --core: #7FA6FF; --org: #4FD1D3; --usr: #B79CF5; --slate: #A9B7C6;
+      --on-head: #0B1420; --warn-bg: #2A2410; --warn-line: #8A7326;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1620; --surface: #16212E; --surface-2: #1B2837; --line: #33465A;
+    --ink: #E6EDF4; --ink-2: #B4C2D0; --muted: #8A9BAD;
+    --core: #7FA6FF; --org: #4FD1D3; --usr: #B79CF5; --slate: #A9B7C6;
+    --on-head: #0B1420; --warn-bg: #2A2410; --warn-line: #8A7326;
+  }
+
+  body { background: var(--bg); color: var(--ink); font: 15px/1.6 'IBM Plex Sans', system-ui, sans-serif; padding-inline: 16px; }
+  .wrap { max-width: 1240px; margin-inline: auto; padding-block: 32px 64px; }
+  .mono, code, pre { font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; }
+  h1 { font-size: 30px; line-height: 1.15; font-weight: 600; margin: 0 0 6px; text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0 0 22px; max-width: 68ch; }
+  h2.part { font-size: 22px; font-weight: 600; margin: 56px 0 4px; padding-top: 14px; border-top: 2px solid var(--ink); }
+  .part-sub { color: var(--muted); margin: 0 0 8px; max-width: 68ch; }
+  section { margin-top: 44px; }
+  h3 { font-size: 18px; font-weight: 600; margin: 0 0 6px; text-wrap: balance; }
+  .lede { margin: 0 0 14px; max-width: 72ch; color: var(--ink-2); }
+  .lede p { margin: 0 0 8px; }
+
+  ul.toc { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0 0 20px; padding: 0; list-style: none; font-size: 13.5px; }
+  ul.toc a { color: var(--core); text-decoration: none; border-bottom: 1px solid var(--line); }
+  ul.toc a:hover, ul.toc a:focus-visible { border-bottom-color: var(--core); outline: 2px solid var(--core); outline-offset: 2px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 8px; padding: 0; list-style: none; font-size: 13px; color: var(--ink-2); }
+  .legend li { display: flex; align-items: center; gap: 8px; }
+  .sw { width: 14px; height: 14px; flex: none; }
+  .sw.core { background: var(--core); } .sw.usr { background: var(--usr); } .sw.org { background: var(--org); }
+  .sw.slate { background: var(--slate); } .sw.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); }
+
+  .board { border: 1px solid var(--line); background-color: var(--bg); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 24px 24px; overflow-x: auto; }
+  .board figure { margin: 0; }
+  .board svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 14px 12px; border-top: 1px solid var(--line); background: var(--surface); }
+
+  /* SVG vocabulary */
+  .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .h-core { fill: var(--core); } .h-org { fill: var(--org); } .h-usr { fill: var(--usr); } .h-slate { fill: var(--slate); }
+  .hd { fill: var(--on-head); font: 600 13.5px 'IBM Plex Sans', system-ui, sans-serif; }
+  .hd2 { fill: var(--ink); font: 600 13.5px 'IBM Plex Sans', system-ui, sans-serif; }
+  .bd { fill: var(--ink-2); font: 400 11.5px 'IBM Plex Sans', system-ui, sans-serif; }
+  .tx { fill: var(--ink); font: 500 12.5px 'IBM Plex Sans', system-ui, sans-serif; }
+  .sm { fill: var(--muted); font: 400 11px 'IBM Plex Sans', system-ui, sans-serif; }
+  .lbl { fill: var(--ink); font: 500 11px 'IBM Plex Mono', ui-monospace, monospace; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+  .ln { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+  .ln.opt { stroke-dasharray: 6 4; }
+  .ln.life { stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 4 4; }
+  .ahd { fill: var(--ink-2); }
+  .note { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .note.warn { fill: var(--warn-bg); stroke: var(--warn-line); }
+  .zone { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 7 5; }
+  .pyr { fill: var(--surface-2); stroke: var(--ink-2); stroke-width: 1.3; }
+  .pyr.hot { fill: var(--core); stroke: var(--core); }
+  .pl { fill: var(--ink); font: 600 13px 'IBM Plex Sans', system-ui, sans-serif; text-anchor: middle; }
+  .pl.hot { fill: var(--on-head); }
+
+  /* Study blocks */
+  .study { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .study h4 { font-size: 13px; font-weight: 600; margin: 0 0 6px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  .study ul { margin: 0; padding-left: 20px; display: grid; gap: 5px; font-size: 14px; color: var(--ink-2); max-width: 78ch; }
+
+  pre { margin: 0; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.55; overflow-x: auto; color: var(--ink); }
+  code { font-size: 12.5px; }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 4px; }
+  .duo h5 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  .duo ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); display: grid; gap: 4px; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 16px; font-size: 13px; }
+  .chain span.c { padding: 4px 10px; background: var(--surface); border: 1px solid var(--line); font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12.5px; }
+  .chain span.a { color: var(--muted); }
+  .heads-up { margin: 12px 0 0; padding: 12px 14px; background: var(--warn-bg); border: 1px dashed var(--warn-line); font-size: 14px; max-width: 78ch; }
+  .heads-up strong { font-weight: 600; }
+  .foot { margin-top: 56px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; max-width: 72ch; }
+</style>
+
+<div class="wrap">
+  <h1>Arquitectura del backend</h1>
+  <p class="sub">Complemento del modelo de datos: cómo se arma el código de <span class="mono">helpdesk-api</span> y cómo llega a la nube. Sirve como mapa para la sesión de estudio; cada figura trae preguntas para llevar a la clase.</p>
+
+  <nav aria-label="Índice">
+    <ul class="toc">
+      <li><a href="#a1">A1 Módulos</a></li>
+      <li><a href="#a2">A2 Camino del request</a></li>
+      <li><a href="#a3">A3 Login y cookie</a></li>
+      <li><a href="#a4">A4 Filtro por organización</a></li>
+      <li><a href="#a5">A5 Transacciones</a></li>
+      <li><a href="#b1">B1 Migraciones</a></li>
+      <li><a href="#b2">B2 Adjuntos en S3</a></li>
+      <li><a href="#b3">B3 Cola y Lambda</a></li>
+      <li><a href="#b4">B4 Despliegue en AWS</a></li>
+      <li><a href="#b5">B5 Testing</a></li>
+    </ul>
+  </nav>
+
+  <ul class="legend" aria-label="Colores">
+    <li><span class="sw core"></span>Lógica de la aplicación</li>
+    <li><span class="sw usr"></span>Seguridad</li>
+    <li><span class="sw org"></span>Datos y almacenamiento</li>
+    <li><span class="sw slate"></span>Infraestructura y soporte</li>
+    <li><span class="sw warn"></span>Riesgo o punto de atención</li>
+    <li><svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><line class="ln opt" x1="0" y1="5" x2="34" y2="5"/></svg>Línea punteada: respuesta u opcional</li>
+  </ul>
+
+  <h2 class="part">Parte A · Cómo está armado el código</h2>
+  <p class="part-sub">Lo que ocurre dentro de la API desde que entra un request hasta que se toca la base.</p>
+
+  <section id="a1">
+    <h3>A1 · Módulos e inyección de dependencias</h3>
+    <div class="lede">
+      <p>NestJS agrupa el código en <strong>módulos</strong>. Cada módulo reúne un controller, un service y lo que necesite. Nadie construye sus dependencias a mano: el service declara lo que necesita en el constructor y Nest se lo entrega. Eso es la <strong>inyección de dependencias</strong>. En espíritu se parece a un Provider de React: alguien provee, quien necesita pide.</p>
+    </div>
+    <div class="board"><figure><div id="fa1"></div>
+      <figcaption>Un módulo raíz importa a los demás. <span class="mono">PrismaModule</span> es global, así que cualquier service puede pedir el <span class="mono">PrismaService</span> sin importar el módulo. Los nombres son un ejemplo ilustrativo, no una decisión cerrada.</figcaption></figure></div>
+    <pre><code>@Injectable()
+export class TicketsService {
+  constructor(private readonly prisma: PrismaService) {}   // Nest lo entrega
+}</code></pre>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué problema resuelve la inyección de dependencias frente a hacer <code>new PrismaService()</code> dentro del service? (pista: tests)</li>
+      <li>¿Qué diferencia hay entre <code>providers</code>, <code>imports</code> y <code>exports</code> de un módulo?</li>
+      <li>¿Por qué conviene una sola instancia de <code>PrismaService</code> (una sola conexión al pool) y no una por request?</li>
+    </ul></div>
+  </section>
+
+  <section id="a2">
+    <h3>A2 · El camino de un request</h3>
+    <div class="lede">
+      <p>Cada request atraviesa una cadena de etapas en un orden fijo. Si una etapa falla, la cadena se corta y el error sale por el filtro de excepciones. En NestJS el orden real es: middleware, guards, interceptors, pipes, controller/service, y los filtros al final. Por eso los guards corren <em>antes</em> que la validación.</p>
+    </div>
+    <div class="board"><figure><div id="fa2"></div>
+      <figcaption>Autenticación y autorización primero; después validación; recién ahí se ejecuta la lógica. El código de estado depende de qué etapa rechazó el request.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué diferencia hay entre 401 y 403? ¿Y entre 400, 404 y 409?</li>
+      <li>¿Por qué el controller no debería tener lógica de negocio?</li>
+      <li>¿Qué es un DTO y por qué se valida en el borde y no dentro del service?</li>
+      <li>¿Qué hace un interceptor y en qué se diferencia de un guard?</li>
+    </ul></div>
+  </section>
+
+  <section id="a3">
+    <h3>A3 · Login y cookie httpOnly</h3>
+    <div class="lede">
+      <p>El login verifica la contraseña contra un <strong>hash</strong> (nunca se guarda la contraseña), firma un JWT con la identidad y el rol, y lo entrega en una cookie que JavaScript no puede leer. Desde ahí el navegador la adjunta solo en cada request.</p>
+    </div>
+    <div class="board"><figure><div id="fa3"></div>
+      <figcaption>El token nunca pasa por el código del front: lo guarda y lo envía el navegador. Eso protege contra el robo por XSS, pero abre la puerta a otro ataque (CSRF), que se mitiga con <span class="mono">SameSite</span>.</figcaption></figure></div>
+    <div class="heads-up"><strong>Dos cosas para tener presentes.</strong> (1) Un JWT ya emitido sigue siendo válido hasta que vence, aunque después desactives al usuario con <code>isActive = false</code>: hay que decidir cómo se maneja (vencimiento corto, chequeo en cada request, etc.). (2) Si el front (Vercel) y la API (AWS) quedan en sitios distintos, el navegador trata la cookie como de terceros: haría falta <code>SameSite=None; Secure</code>, CORS con credenciales y <code>fetch(..., { credentials: 'include' })</code>, y aun así muchos navegadores las bloquean. Lo más limpio suele ser servir ambos bajo el mismo dominio (por ejemplo <code>app.tudominio.com</code> y <code>api.tudominio.com</code>). Lo tengo como punto a verificar al integrar el front.</div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿De qué ataque protege <code>HttpOnly</code> y de cuál <em>no</em>?</li>
+      <li>¿Qué es CSRF y cómo ayuda <code>SameSite</code>?</li>
+      <li>¿Qué es un salt y por qué se usa bcrypt o argon2 en vez de SHA-256?</li>
+      <li>¿Qué contiene un JWT, quién puede leerlo y qué garantiza la firma?</li>
+    </ul></div>
+  </section>
+
+  <section id="a4">
+    <h3>A4 · Dónde vive el filtro por organización</h3>
+    <div class="lede">
+      <p>El aislamiento entre organizaciones depende de que <strong>toda query</strong> filtre por el <span class="mono">organizationId</span> del usuario logueado. Ese dato viaja siempre en la misma cadena y nunca sale del body ni de la URL.</p>
+    </div>
+    <div class="chain" aria-label="Recorrido del organizationId">
+      <span class="c">JWT firmado</span><span class="a">→</span>
+      <span class="c">req.user.organizationId</span><span class="a">→</span>
+      <span class="c">parámetro del service</span><span class="a">→</span>
+      <span class="c">where de Prisma</span>
+    </div>
+    <div class="duo">
+      <div>
+        <h5>Opción 1 · Explícito en cada query</h5>
+<pre><code>findOne(user: AuthUser, id: string) {
+  return this.prisma.ticket.findFirst({
+    where: { id, organizationId: user.organizationId },
+  });
+}</code></pre>
+        <ul><li>Se lee y se depura fácil.</li><li>Depende de no olvidarse en ninguna de las decenas de queries.</li></ul>
+      </div>
+      <div>
+        <h5>Opción 2 · Centralizado (ilustrativo)</h5>
+<pre><code>// cliente "atado" a una organización
+const db = this.tenantDb.for(user.organizationId);
+return db.ticket.findFirst({ where: { id } });
+// el filtro se agrega solo</code></pre>
+        <ul><li>No se puede olvidar el filtro.</li><li>Más "magia": cuesta más entender qué SQL sale realmente.</li></ul>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:12px">La opción 2 es un pseudocódigo: la forma concreta (por ejemplo una extensión del cliente de Prisma) se elige en la Fase 2 con casos reales. Sea cual sea, un test que intente leer datos de otra organización tiene que fallar siempre.</p>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué es un IDOR? ¿Por qué un UUID no lo resuelve por sí solo?</li>
+      <li>Si el ticket es de otra organización, ¿devolvés 403 o 404? ¿Qué filtra cada opción?</li>
+      <li>¿Qué pasaría si aceptáramos el <code>organizationId</code> desde el body?</li>
+      <li>¿Qué agregaría Row-Level Security de Postgres frente a las dos opciones?</li>
+    </ul></div>
+  </section>
+
+  <section id="a5">
+    <h3>A5 · Transacciones y concurrencia</h3>
+    <div class="lede">
+      <p>Crear un ticket toca tres cosas: el contador de la organización, el ticket y el historial. O pasan las tres o ninguna: es una <strong>transacción</strong>. Además, dos agentes pueden crear tickets a la vez: el bloqueo de fila hace que uno espere al otro y nunca reciban el mismo número.</p>
+    </div>
+    <div class="board"><figure><div id="fa5"></div>
+      <figcaption>El <span class="mono">UPDATE</span> del contador bloquea la fila de la organización hasta el <span class="mono">COMMIT</span>. Si A fallara y hiciera <span class="mono">ROLLBACK</span>, el contador volvería atrás y no quedarían huecos en la numeración.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué significa ACID? ¿Cuál de las cuatro letras evita que A deje el contador a medias?</li>
+      <li>¿Qué pasa si el servidor se cae entre el <code>INSERT</code> y el <code>COMMIT</code>?</li>
+      <li>¿Por qué sigue siendo útil el índice único <code>(organizationId, number)</code> aunque exista el bloqueo? (defensa en profundidad)</li>
+      <li>¿Qué costo tiene un bloqueo de fila? ¿Cuándo se vuelve un cuello de botella?</li>
+    </ul></div>
+  </section>
+
+  <h2 class="part">Parte B · Del código a la nube</h2>
+  <p class="part-sub">Cómo el esquema llega a producción, cómo se mueven los archivos y los trabajos en segundo plano, y dónde corre cada pieza.</p>
+
+  <section id="b1">
+    <h3>B1 · Migraciones</h3>
+    <div class="lede">
+      <p>Una <strong>migración</strong> es un archivo SQL versionado que lleva la base de un estado al siguiente. Se commitea junto con el código, así cualquier entorno puede reconstruir el esquema aplicando las migraciones en orden.</p>
+    </div>
+    <div class="board"><figure><div id="fb1"></div>
+      <figcaption>En desarrollo se genera y aplica la migración en una rama de Neon descartable. En producción solo se aplican las que ya fueron revisadas y mergeadas. Es el flujo objetivo; los detalles del pipeline se definen en la Fase 8.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué pasa si editás una migración que ya se aplicó en otro entorno?</li>
+      <li>¿Qué es el "drift" entre el schema y la base real?</li>
+      <li>¿Cómo se hace un cambio que rompe datos (renombrar o borrar una columna) sin downtime?</li>
+      <li>¿Qué diferencia hay entre <code>migrate dev</code> y <code>migrate deploy</code>?</li>
+    </ul></div>
+  </section>
+
+  <section id="b2">
+    <h3>B2 · Adjuntos en S3 con URL prefirmada</h3>
+    <div class="lede">
+      <p>Los archivos no pasan por la API ni se guardan en la base: van directo del navegador a S3 con una <strong>URL prefirmada</strong>, un permiso temporal que la API firma. En Postgres queda solo la metadata y la <span class="mono">storageKey</span>.</p>
+    </div>
+    <div class="board"><figure><div id="fb2"></div>
+      <figcaption>La API decide quién puede subir qué; S3 hace el trabajo pesado. La key incluye la organización, para que el aislamiento también valga para los archivos.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Por qué no subir el archivo a través de la API? ¿Qué se gana y qué se complica?</li>
+      <li>¿Qué es exactamente una URL prefirmada y por qué vence?</li>
+      <li>¿Qué pasa si el usuario sube el archivo pero nunca confirma? (archivos huérfanos)</li>
+      <li>¿Qué es un rol IAM y cómo evita poner claves de AWS en el código?</li>
+    </ul></div>
+  </section>
+
+  <section id="b3">
+    <h3>B3 · Trabajo asíncrono con SQS y Lambda</h3>
+    <div class="lede">
+      <p>Mandar un email no tiene por qué demorar la respuesta al usuario. La API publica un mensaje en una <strong>cola</strong> y responde; una función Lambda lo procesa después. Si falla, el mensaje se reintenta y, tras varios fallos, va a una cola de mensajes muertos.</p>
+    </div>
+    <div class="board"><figure><div id="fb3"></div>
+      <figcaption>Desacopla "algo pasó" de "avisale a alguien". El precio es una consistencia más compleja: por eso aparece el problema de la doble escritura.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué significa que un consumidor sea <strong>idempotente</strong> y por qué importa con reintentos?</li>
+      <li>¿Qué es una dead-letter queue y quién mira lo que cae ahí?</li>
+      <li>¿Qué es el patrón outbox y qué problema resuelve?</li>
+      <li>¿Cuándo un proceso debe ser asíncrono y cuándo es mejor hacerlo en el mismo request?</li>
+    </ul></div>
+  </section>
+
+  <section id="b4">
+    <h3>B4 · Despliegue en AWS</h3>
+    <div class="lede">
+      <p>La API se empaqueta en una imagen Docker, se guarda en ECR y corre en ECS Fargate detrás de un balanceador. Los secretos y los permisos no van en el código: los entregan Secrets Manager y roles de IAM. La base queda en Neon, fuera de AWS.</p>
+    </div>
+    <div class="board"><figure><div id="fb4"></div>
+      <figcaption>Topología objetivo, a validar en la Fase 8. No dibujé la red (VPC, subredes públicas y privadas, security groups) para no saturar el diagrama, pero entra en esa fase. Costos y detalles de red se verifican antes de crear nada.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué es un contenedor y en qué se diferencia de una máquina virtual?</li>
+      <li>¿Qué es una VPC, una subred pública y un security group?</li>
+      <li>¿Qué diferencia hay entre un usuario IAM y un rol IAM?</li>
+      <li>¿Qué significa escalar horizontalmente y qué de la API tiene que ser <em>stateless</em> para poder hacerlo?</li>
+    </ul></div>
+  </section>
+
+  <section id="b5">
+    <h3>B5 · Estrategia de testing</h3>
+    <div class="lede">
+      <p>Tres niveles con distinto costo. Para este proyecto el peso está en los tests de <strong>integración</strong>: son los que prueban lo que más nos importa (autenticación, permisos, aislamiento y transacciones) con una base real.</p>
+    </div>
+    <div class="board"><figure><div id="fb5"></div>
+      <figcaption>Cuanto más arriba, más lento, más frágil y más caro de mantener. Un test que verifica que una organización no ve datos de otra vale más que decenas de tests de getters.</figcaption></figure></div>
+    <div class="study"><h4>Para llevar a la clase</h4><ul>
+      <li>¿Qué se mockea y qué no? ¿Qué se pierde cuando mockeás la base?</li>
+      <li>¿Qué hace que un test sea frágil?</li>
+      <li>¿Cómo se prueba una condición de carrera como la del contador de tickets?</li>
+    </ul></div>
+  </section>
+
+  <p class="foot">Estos diagramas describen el diseño propuesto, no código existente. Nombres, límites y herramientas se confirman al implementar cada fase.</p>
+</div>
+
+<script>
+(function () {
+  function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function Fig(id, w, h, label) { this.id = id; this.w = w; this.h = h; this.label = label; this.s = ''; }
+  var P = Fig.prototype;
+  P.t = function (x, y, s, c, a) {
+    this.s += '<text class="' + (c || 'tx') + '" x="' + x + '" y="' + y + '"' + (a ? ' text-anchor="' + a + '"' : '') + '>' + esc(s) + '</text>';
+    return this;
+  };
+  P.r = function (x, y, w, h, c) {
+    this.s += '<rect class="' + c + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>';
+    return this;
+  };
+  P.ln = function (d, c) { this.s += '<path class="ln' + (c ? ' ' + c : '') + '" d="' + d + '"/>'; return this; };
+  P.ar = function (d, c) {
+    this.s += '<path class="ln' + (c ? ' ' + c : '') + '" d="' + d + '" marker-end="url(#ah' + this.id + ')"/>';
+    return this;
+  };
+  P.card = function (x, y, w, tone, title, lines, hf) {
+    var n = lines.length, i, h;
+    if (tone === 'warn') {
+      h = hf || (34 + 16 * n);
+      this.r(x, y, w, h, 'note warn').t(x + 12, y + 20, title, 'hd2');
+      for (i = 0; i < n; i++) this.t(x + 12, y + 40 + i * 16, lines[i], 'bd');
+      return h;
+    }
+    h = hf || (40 + 16 * n);
+    this.r(x, y, w, h, 'box').r(x, y, w, 28, 'h-' + tone).t(x + 12, y + 19, title, 'hd');
+    for (i = 0; i < n; i++) this.t(x + 12, y + 46 + i * 16, lines[i], 'bd');
+    return h;
+  };
+  P.lanes = function (ls, top, bot) {
+    var me = this;
+    ls.forEach(function (l) {
+      me.r(l.x - 85, top, 170, 30, 'h-' + l.tone).t(l.x, top + 20, l.name, 'hd', 'middle');
+      me.ln('M' + l.x + ' ' + (top + 30) + ' V' + bot, 'life');
+    });
+    return this;
+  };
+  P.msg = function (x1, x2, y, label, lx, dash) {
+    var d = x1 < x2 ? 1 : -1;
+    this.ar('M' + (x1 + d * 4) + ' ' + y + ' H' + (x2 - d * 2), dash ? 'opt' : '');
+    this.t(lx, y - 7, label, 'lbl', 'middle');
+    return this;
+  };
+  P.note = function (x, y, s, warn) {
+    var w = Math.round(s.length * 6.2 + 28);
+    this.r(x - w / 2, y - 13, w, 26, 'note' + (warn ? ' warn' : '')).t(x, y + 4, s, 'bd', 'middle');
+    return this;
+  };
+  P.render = function (target) {
+    document.getElementById(target).innerHTML =
+      '<svg viewBox="0 0 ' + this.w + ' ' + this.h + '" role="img" aria-label="' + esc(this.label) + '">' +
+      '<defs><marker id="ah' + this.id + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path class="ahd" d="M0 0L10 5L0 10z"/></marker></defs>' +
+      this.s + '</svg>';
+  };
+
+  var f, i;
+
+  // ── A1 · Módulos ──────────────────────────────────────────────
+  f = new Fig('a1', 1200, 580, 'Diagrama de módulos de NestJS: AppModule importa Config, Prisma, Auth, Users, Customers y Tickets. Dentro de TicketsModule, el controller llama al service y este recibe el PrismaService por inyección.');
+  f.card(500, 20, 200, 'slate', 'AppModule', ['Módulo raíz: importa a', 'todos los demás.'], 72);
+  var mods = [
+    ['slate', 'ConfigModule', ['Lee variables de', 'entorno (.env).']],
+    ['org', 'PrismaModule', ['@Global: entrega el', 'PrismaService a todos.']],
+    ['usr', 'AuthModule', ['Login, JWT, guards y', 'decorador @Roles().']],
+    ['core', 'UsersModule', ['Alta y gestión de', 'usuarios de la org.']],
+    ['core', 'CustomersModule', ['CRUD de clientes', '(contactos).']],
+    ['core', 'TicketsModule', ['Tickets, comentarios,', 'adjuntos e historial.']]
+  ];
+  mods.forEach(function (m, k) {
+    var x = 27 + 195 * k;
+    f.card(x, 150, 170, m[0], m[1], m[2], 72);
+    f.ar('M600 92 V120 H' + (x + 85) + ' V148');
+  });
+  f.t(612, 112, 'imports', 'sm');
+  f.r(20, 270, 1160, 290, 'zone').t(36, 294, 'Por dentro de un módulo de dominio (ejemplo: TicketsModule)', 'tx');
+  f.card(60, 320, 230, 'core', 'TicketsController', ["@Controller('tickets')", 'Define rutas y verbos HTTP.', 'Sin lógica de negocio.']);
+  f.card(400, 320, 230, 'core', 'TicketsService', ['@Injectable()', 'Reglas de negocio y', 'transacciones.']);
+  f.card(740, 320, 230, 'org', 'PrismaService', ['Lo provee PrismaModule.', 'Nest lo entrega: nadie', 'hace new PrismaService().']);
+  f.ar('M290 364 H398').t(344, 356, 'llama', 'sm', 'middle');
+  f.ar('M630 364 H738').t(684, 356, 'consulta', 'sm', 'middle');
+  f.ar('M855 320 V262 H307 V224', 'opt').t(581, 256, 'lo provee', 'sm', 'middle');
+  f.card(60, 460, 350, 'slate', 'dto/create-ticket.dto.ts', ['Clase que describe y valida el body:', 'título, descripción, prioridad…'], 72);
+  f.card(440, 460, 350, 'slate', 'tickets.module.ts', ['Registra controller y service (providers).', 'Declara qué importa y qué exporta.'], 72);
+  f.card(820, 460, 340, 'slate', 'Tipos de Prisma', ['Los modelos de schema.prisma ya son', 'tipos TypeScript: no se duplican.'], 72);
+  f.render('fa1');
+
+  // ── A2 · Camino del request ───────────────────────────────────
+  f = new Fig('a2', 1200, 390, 'Cadena de un request en NestJS: guard JWT, guard de roles, pipe con DTO, controller, service y Prisma con Postgres. Cualquier falla termina en el filtro de excepciones.');
+  f.t(12, 38, 'Request HTTP (trae la cookie con el JWT)', 'tx').ar('M100 48 V78');
+  var st = [
+    ['usr', 'Guard JWT', ['Lee el token de la', 'cookie y verifica firma', 'y vencimiento.', '→ req.user = { id,', 'organizationId, role }'], 'si falla → 401'],
+    ['usr', 'Guard de roles', ['Lee @Roles() del', 'endpoint y lo compara', 'con req.user.role.'], 'si falla → 403'],
+    ['core', 'Pipe + DTO', ['Valida y transforma', 'body, query y params', 'contra la clase DTO.', '→ objeto tipado.'], 'si falla → 400'],
+    ['core', 'Controller', ['Define ruta y verbo', 'HTTP. Sin lógica de', 'negocio: solo delega', 'en el service.'], ''],
+    ['core', 'Service', ['Reglas de negocio.', 'organizationId viene', 'del usuario, nunca', 'del body. Abre las', 'transacciones.'], 'si falla → 404 / 409'],
+    ['org', 'Prisma + Postgres', ['Prisma arma el SQL.', 'Constraints y foreign', 'keys rechazan datos', 'inválidos: última', 'defensa.'], 'si falla → 500']
+  ];
+  st.forEach(function (s, k) {
+    var x = 12 + 200 * k;
+    f.card(x, 80, 176, s[0], s[1], s[2], 124);
+    if (k < 5) f.ar('M' + (x + 176) + ' 142 H' + (x + 198));
+    f.t(x + 88, 226, s[3], 'sm', 'middle');
+  });
+  f.ar('M1100 236 V262 H30', 'opt').t(600, 256, 'respuesta JSON (200 / 201)', 'lbl', 'middle');
+  f.card(12, 290, 1176, 'slate', 'Filtro de excepciones', [
+    'Si algo falla en cualquier punto, convierte el error en una respuesta JSON uniforme: { statusCode, message }.',
+    'Traduce errores de Prisma: violación de unique (P2002) → 409; registro inexistente (P2025) → 404.'
+  ]);
+  f.render('fa2');
+
+  // ── A3 · Login ────────────────────────────────────────────────
+  f = new Fig('a3', 1100, 500, 'Secuencia de login: el navegador envía credenciales, la API consulta la base, verifica el hash, firma un JWT y lo devuelve en una cookie HttpOnly; después el navegador la adjunta sola en cada request.');
+  f.lanes([{ x: 170, name: 'Navegador', tone: 'core' }, { x: 550, name: 'API (NestJS)', tone: 'core' }, { x: 930, name: 'PostgreSQL', tone: 'org' }], 20, 485);
+  f.msg(170, 550, 95, 'POST /auth/login { email, password }', 360)
+   .msg(550, 930, 140, 'SELECT usuario WHERE email = ?', 740)
+   .msg(930, 550, 180, 'usuario + passwordHash', 740, 1)
+   .note(550, 222, 'compara la contraseña con el hash')
+   .note(550, 262, 'firma JWT { sub, organizationId, role }')
+   .msg(550, 170, 305, '200 + Set-Cookie: HttpOnly; Secure; SameSite', 360, 1)
+   .note(170, 345, 'JavaScript NO puede leer la cookie', 1)
+   .msg(170, 550, 390, 'GET /tickets  (la cookie viaja sola)', 360)
+   .note(550, 430, 'Guard JWT verifica la firma → req.user')
+   .msg(550, 170, 465, '200 + tickets de tu organización', 360, 1);
+  f.render('fa3');
+
+  // ── A5 · Transacción concurrente ──────────────────────────────
+  f = new Fig('a5', 1100, 575, 'Dos requests crean un ticket a la vez en la misma organización. El UPDATE del contador de A bloquea la fila; B espera hasta el COMMIT de A y recibe el número siguiente.');
+  f.lanes([{ x: 170, name: 'Request A', tone: 'core' }, { x: 550, name: 'PostgreSQL', tone: 'org' }, { x: 930, name: 'Request B', tone: 'core' }], 20, 555);
+  f.msg(170, 550, 95, 'BEGIN', 360)
+   .msg(170, 550, 135, 'UPDATE org SET ticket_seq = ticket_seq + 1', 360)
+   .note(550, 172, 'fila de la org BLOQUEADA por A (ticket_seq = 5)', 1)
+   .msg(930, 550, 215, 'BEGIN', 740)
+   .msg(930, 550, 255, 'UPDATE org SET ticket_seq = ticket_seq + 1', 740)
+   .note(930, 295, 'B espera: la fila está bloqueada', 1)
+   .msg(170, 550, 340, 'INSERT ticket (number = 5)', 360)
+   .msg(170, 550, 375, 'INSERT activity_log', 360)
+   .msg(170, 550, 410, 'COMMIT', 360)
+   .note(550, 447, 'fila liberada')
+   .msg(550, 930, 485, 'el UPDATE de B continúa → 6', 740, 1)
+   .msg(930, 550, 525, 'INSERT ticket (number = 6) + log + COMMIT', 740);
+  f.render('fa5');
+
+  // ── B1 · Migraciones ──────────────────────────────────────────
+  f = new Fig('b1', 1200, 520, 'Flujo de una migración: se edita schema.prisma, migrate dev genera el SQL y lo aplica en una rama de Neon; el archivo SQL se commitea, pasa por pull request y CI, y migrate deploy lo aplica en la base de producción.');
+  f.t(20, 28, 'En tu máquina', 'sm').t(20, 216, 'Camino a producción', 'sm');
+  f.card(20, 44, 250, 'core', 'schema.prisma', ['Editás el modelo: agregás', 'un campo, una tabla o', 'un índice.'], 104);
+  f.card(320, 44, 250, 'slate', 'prisma migrate dev', ['Compara el schema con la', 'base, genera el SQL de la', 'diferencia y lo aplica en', 'tu base de desarrollo.'], 104);
+  f.card(620, 44, 250, 'org', 'Neon: rama de feature', ['Una rama de la base por', 'rama de git. Descartable:', 'la podés romper sin miedo.'], 104);
+  f.ar('M270 96 H318').ar('M570 96 H618');
+  f.card(320, 234, 250, 'core', 'migration.sql', ['Archivo SQL versionado en', 'git (prisma/migrations).', 'Es el historial del esquema.', 'Se commitea con el código.'], 104);
+  f.ar('M445 148 V232').t(455, 195, 'genera', 'sm');
+  f.card(620, 234, 250, 'slate', 'Pull request + CI', ['GitHub Actions corre los', 'tests. Se revisa el SQL', 'antes de mergear a', 'develop.'], 104);
+  f.ar('M570 286 H618');
+  f.card(920, 234, 250, 'slate', 'prisma migrate deploy', ['Aplica las migraciones', 'pendientes. No genera SQL', 'nuevo ni resetea la base.', 'Corre en el deploy.'], 104);
+  f.ar('M870 286 H918');
+  f.card(920, 394, 250, 'org', 'Neon: rama main', ['La base de producción.', 'Cambia solo por este', 'camino.'], 104);
+  f.ar('M1045 338 V392');
+  f.render('fb1');
+
+  // ── B2 · Adjuntos en S3 ───────────────────────────────────────
+  f = new Fig('b2', 1200, 570, 'Subida de un adjunto: el navegador pide permiso a la API, recibe una URL prefirmada, sube el archivo directo a S3, confirma a la API, que verifica el objeto y guarda la metadata en Postgres.');
+  f.lanes([{ x: 130, name: 'Navegador', tone: 'core' }, { x: 430, name: 'API (NestJS)', tone: 'core' }, { x: 730, name: 'Amazon S3', tone: 'org' }, { x: 1030, name: 'PostgreSQL', tone: 'org' }], 20, 555);
+  f.msg(130, 430, 95, '1. pedir subida {nombre, tipo, tamaño}', 280)
+   .note(430, 135, 'valida permisos, tipo y tamaño')
+   .note(430, 172, 'genera la key: orgId/ticketId/uuid')
+   .msg(430, 130, 215, '2. URL prefirmada (vence en minutos)', 280, 1)
+   .msg(130, 730, 262, '3. PUT del archivo directo a S3', 580)
+   .note(730, 300, 'guarda el objeto (la API no lo toca)')
+   .msg(130, 430, 345, '4. confirmar subida { key }', 280)
+   .msg(430, 730, 388, '5. HEAD: ¿existe? ¿qué tamaño tiene?', 580)
+   .msg(430, 1030, 433, '6. INSERT attachment + activity_log', 880)
+   .msg(430, 130, 478, '7. 201 { id, fileName… }', 280, 1)
+   .note(730, 530, 'Para descargar: la API firma una URL de lectura de vida corta', 1);
+  f.render('fb2');
+
+  // ── B3 · Cola y Lambda ────────────────────────────────────────
+  f = new Fig('b3', 1200, 340, 'Trabajo asíncrono: la API confirma la transacción y publica un mensaje en SQS; una Lambda lo consume y envía un email; los mensajes que fallan varias veces van a una dead-letter queue.');
+  f.card(20, 50, 230, 'core', 'API (NestJS)', ['1. Transacción: asigna el', 'ticket y anota el log.', '2. COMMIT.', '3. Publica un mensaje', '{ ticketId, agentId }.'], 124);
+  f.card(320, 50, 230, 'slate', 'Cola SQS', ['Guarda el mensaje hasta', 'que un consumidor lo', 'procese. Si falla, el', 'mensaje vuelve a la cola.'], 124);
+  f.card(620, 50, 230, 'slate', 'Lambda consumidora', ['Se dispara por cada', 'mensaje. Arma el email y', 'lo envía. Tiene que ser', 'idempotente: un reintento', 'no manda dos mails.'], 124);
+  f.card(920, 50, 230, 'slate', 'Servicio de email', ['Por ejemplo Amazon SES.', 'Entrega el mail al', 'agente asignado.'], 124);
+  f.ar('M250 112 H318').t(284, 104, 'publica', 'sm', 'middle');
+  f.ar('M550 112 H618').t(584, 104, 'dispara', 'sm', 'middle');
+  f.ar('M850 112 H918').t(884, 104, 'envía', 'sm', 'middle');
+  f.card(320, 230, 230, 'warn', 'Dead-letter queue', ['Mensajes que fallaron N', 'veces seguidas. Alguien', 'los revisa a mano.']);
+  f.ar('M435 174 V228', 'opt').t(445, 205, 'tras N fallos', 'sm');
+  f.card(620, 230, 530, 'warn', 'Riesgo: doble escritura', [
+    'Publicás y el COMMIT falla: el mail avisa de algo que no pasó.',
+    'Hacés COMMIT y la app cae antes de publicar: se pierde el mensaje.',
+    'Solución clásica: patrón outbox (queda fuera del MVP).'
+  ]);
+  f.render('fb3');
+
+  // ── B4 · Despliegue en AWS ────────────────────────────────────
+  f = new Fig('b4', 1200, 710, 'Topología en AWS: GitHub Actions sube la imagen a ECR y despliega en ECS Fargate; el navegador llega a la API por un balanceador; la API usa Secrets Manager, CloudWatch, S3 y SQS con Lambda; la base PostgreSQL está en Neon, fuera de AWS.');
+  f.r(250, 20, 930, 530, 'zone').t(266, 44, 'AWS (una región)', 'tx');
+  f.card(20, 60, 190, 'slate', 'GitHub Actions', ['Al mergear:', 'tests → build de la', 'imagen → push a ECR', '→ deploy en ECS.'], 104);
+  f.card(20, 200, 190, 'core', 'Vercel', ['Next.js (frontend).', 'Sirve las páginas y el', 'JS al navegador.'], 88);
+  f.card(20, 340, 190, 'core', 'Navegador', ['Habla con Vercel', '(páginas) y con la API', '(fetch + cookie).'], 120);
+  f.ar('M115 340 V290').t(125, 318, 'HTML y JS', 'sm');
+  f.card(520, 60, 190, 'slate', 'ECR', ['Registro de imágenes', 'Docker. Cada deploy', 'sube una imagen nueva.'], 104);
+  f.ar('M210 112 H518');
+  f.card(300, 340, 150, 'slate', 'Load Balancer', ['Entrada HTTPS.', 'Reparte requests', 'entre las tareas.'], 120);
+  f.ar('M210 400 H298');
+  f.card(520, 340, 190, 'core', 'ECS Fargate: API', ['Corre el contenedor de', 'NestJS. Escala sumando', 'tareas. Rol IAM: permisos', 'a S3 y SQS sin claves', 'en el código.'], 120);
+  f.ar('M450 400 H518');
+  f.ar('M615 164 V338').t(625, 255, 'pull de la imagen', 'sm');
+  f.card(800, 60, 180, 'usr', 'Secrets Manager', ['JWT_SECRET y', 'DATABASE_URL. La app', 'los recibe al arrancar.'], 104);
+  f.card(800, 190, 180, 'slate', 'CloudWatch', ['Logs de la API y', 'alarmas (errores,', 'latencia).'], 104);
+  f.card(800, 320, 180, 'org', 'Amazon S3', ['Adjuntos. Se accede', 'con URLs prefirmadas.'], 104);
+  f.card(800, 450, 180, 'slate', 'SQS', ['Cola de trabajos', 'asíncronos.'], 88);
+  f.card(1010, 450, 160, 'slate', 'Lambda', ['Procesa los mensajes', '(emails).'], 88);
+  f.ar('M980 494 H1008');
+  f.ln('M710 400 H755').ln('M755 112 V494').ln('M755 112 H800').ln('M755 242 H800').ln('M755 372 H800').ln('M755 494 H800');
+  f.card(520, 590, 190, 'org', 'Neon (PostgreSQL)', ['Fuera de AWS: se conecta', 'por internet con TLS.', 'Una rama por feature.'], 104);
+  f.ar('M615 460 V588').t(625, 578, 'SQL por TLS', 'sm');
+  f.render('fb4');
+
+  // ── B5 · Pirámide de testing ──────────────────────────────────
+  f = new Fig('b5', 1200, 440, 'Pirámide de testing: pocos tests E2E arriba, tests de integración en el medio como núcleo del proyecto, y muchos tests unitarios en la base.');
+  f.s += '<polygon class="pyr" points="350,30 433,130 267,130"/>' +
+         '<polygon class="pyr hot" points="267,130 433,130 533,250 167,250"/>' +
+         '<polygon class="pyr" points="167,250 533,250 650,390 50,390"/>';
+  f.t(350, 108, 'E2E', 'pl', 'middle').t(350, 196, 'Integración', 'pl hot', 'middle').t(350, 328, 'Unit', 'pl', 'middle');
+  f.t(700, 62, 'E2E: pocos y lentos', 'hd2').t(700, 84, 'Front + API + base reales.', 'bd').t(700, 100, 'Uno o dos flujos completos:', 'bd').t(700, 116, 'registro → ticket → comentario.', 'bd');
+  f.t(700, 162, 'Integración: el corazón del proyecto', 'hd2').t(700, 184, 'Endpoints reales (supertest) contra una', 'bd').t(700, 200, 'base real. Acá se prueban auth, permisos,', 'bd').t(700, 216, 'aislamiento entre organizaciones y', 'bd').t(700, 232, 'transacciones.', 'bd');
+  f.t(700, 282, 'Unit: muchos y rápidos', 'hd2').t(700, 304, 'Servicios con Prisma mockeado.', 'bd').t(700, 320, 'Reglas de negocio: transiciones de', 'bd').t(700, 336, 'estado, validaciones.', 'bd');
+  f.card(700, 362, 480, 'warn', 'Decisión abierta: la base de los tests', ['¿Una rama de Neon o un Postgres en Docker?', 'Se decide con el primer test de integración.']);
+  f.render('fb5');
+})();
+</script>

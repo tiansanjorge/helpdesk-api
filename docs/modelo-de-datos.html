@@ -1,0 +1,262 @@
+<meta charset="utf-8">
+<title>Modelo de datos HelpDesk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #EEF2F6;
+    --surface: #FFFFFF;
+    --surface-2: #F4F7FA;
+    --line: #C3CDD8;
+    --ink: #14202C;
+    --ink-2: #3B4B5C;
+    --muted: #5D6E80;
+    --core: #2456C7;
+    --org: #0B7A7C;
+    --usr: #6A3FC0;
+    --slate: #3A4A5C;
+    --on-head: #FFFFFF;
+    --warn-bg: #FFF7E0;
+    --warn-line: #D9B44A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1620;
+      --surface: #16212E;
+      --surface-2: #1B2837;
+      --line: #33465A;
+      --ink: #E6EDF4;
+      --ink-2: #B4C2D0;
+      --muted: #8A9BAD;
+      --core: #7FA6FF;
+      --org: #4FD1D3;
+      --usr: #B79CF5;
+      --slate: #A9B7C6;
+      --on-head: #0B1420;
+      --warn-bg: #2A2410;
+      --warn-line: #8A7326;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1620;
+    --surface: #16212E;
+    --surface-2: #1B2837;
+    --line: #33465A;
+    --ink: #E6EDF4;
+    --ink-2: #B4C2D0;
+    --muted: #8A9BAD;
+    --core: #7FA6FF;
+    --org: #4FD1D3;
+    --usr: #B79CF5;
+    --slate: #A9B7C6;
+    --on-head: #0B1420;
+    --warn-bg: #2A2410;
+    --warn-line: #8A7326;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline: 16px;
+  }
+  .wrap { max-width: 1240px; margin-inline: auto; padding-block: 32px 56px; }
+  h1 { font-size: 30px; line-height: 1.15; font-weight: 600; margin: 0 0 6px; text-wrap: balance; }
+  .sub { color: var(--muted); margin: 0 0 24px; max-width: 65ch; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 0 0 14px; padding: 0; list-style: none; font-size: 13px; color: var(--ink-2); }
+  .legend li { display: flex; align-items: center; gap: 8px; }
+  .legend svg { flex: none; }
+
+  .board {
+    border: 1px solid var(--line);
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    overflow-x: auto;
+  }
+  .board figure { margin: 0; }
+  .board svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  figcaption { font-size: 13px; color: var(--muted); padding: 10px 14px 12px; border-top: 1px solid var(--line); background: var(--surface); }
+
+  .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .stripe { fill: var(--surface-2); }
+  .h-core { fill: var(--core); }
+  .h-org { fill: var(--org); }
+  .h-usr { fill: var(--usr); }
+  .h-slate { fill: var(--slate); }
+  .hd { fill: var(--on-head); font: 600 13.5px 'IBM Plex Sans', system-ui, sans-serif; }
+  .nm { fill: var(--ink); font: 500 12.5px 'IBM Plex Mono', ui-monospace, monospace; }
+  .ty { fill: var(--muted); font: 400 11px 'IBM Plex Mono', ui-monospace, monospace; text-anchor: end; }
+  .ln { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+  .ln.opt { stroke-dasharray: 6 4; }
+  .jn { fill: var(--ink-2); }
+  .card { fill: var(--muted); font: 600 11px 'IBM Plex Mono', ui-monospace, monospace; }
+  .pk { fill: var(--ink); }
+  .ring { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  .d-org { fill: var(--org); }
+  .d-usr { fill: var(--usr); }
+
+  .pending {
+    margin: 28px 0 0;
+    padding: 14px 16px;
+    background: var(--warn-bg);
+    border: 1px dashed var(--warn-line);
+    font-size: 14px;
+  }
+  .pending strong { font-weight: 600; }
+  .pending ul { margin: 6px 0 0; padding-left: 20px; }
+
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 32px 40px; margin-top: 36px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; padding-top: 10px; border-top: 2px solid var(--ink); }
+  .notes ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 13.5px; }
+  .notes li { color: var(--ink-2); }
+  .notes code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12.5px; color: var(--ink); }
+  .tag { display: inline-block; font: 500 11px 'IBM Plex Mono', ui-monospace, monospace; padding: 1px 6px; border: 1px solid var(--line); color: var(--ink-2); background: var(--surface); margin-right: 4px; }
+</style>
+
+<div class="wrap">
+  <h1>Modelo de datos</h1>
+  <p class="sub">Borrador del esquema de <span class="mono">helpdesk-api</span>: 8 tablas, multi-tenant por <span class="mono">organizationId</span>. Refleja <span class="mono">prisma/schema.prisma</span>.</p>
+
+  <ul class="legend" aria-label="Referencias del diagrama">
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><polygon class="pk" points="7,2 12,7 7,12 2,7"/></svg>Clave primaria</li>
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle class="d-org" cx="7" cy="7" r="4.5"/></svg>Referencia a <span class="mono">Organization</span> (en todas las tablas)</li>
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle class="d-usr" cx="7" cy="7" r="4.5"/></svg>Referencia a <span class="mono">User</span></li>
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle class="ring" cx="7" cy="7" r="4"/></svg>Referencia dibujada con línea</li>
+    <li><svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><line class="ln" x1="0" y1="5" x2="34" y2="5"/></svg>Obligatoria</li>
+    <li><svg width="34" height="10" viewBox="0 0 34 10" aria-hidden="true"><line class="ln opt" x1="0" y1="5" x2="34" y2="5"/></svg>Opcional</li>
+    <li><span class="mono">1</span> a <span class="mono">N</span>: un lado tiene uno, el otro muchos</li>
+  </ul>
+
+  <div class="board">
+    <figure>
+      <div id="er"></div>
+      <figcaption>Un ticket pertenece a un cliente y, opcionalmente, a una categoría; tiene muchos comentarios, adjuntos y entradas de historial. Todo cuelga de una organización.</figcaption>
+    </figure>
+  </div>
+
+  <div class="pending">
+    <strong>Decisiones tomadas</strong>
+    <ul>
+      <li>IDs como <span class="mono">uuid</span> versión 7 (ordenables por tiempo).</li>
+      <li>Email de <span class="mono">User</span> único a nivel global, guardado en minúsculas.</li>
+      <li>Número de ticket por organización (<span class="mono">#1, #2…</span>): <span class="mono">Ticket.number</span> más el contador <span class="mono">Organization.ticketSeq</span>, que se incrementa de forma atómica al crear el ticket. Único por <span class="mono">(organizationId, number)</span>.</li>
+    </ul>
+  </div>
+
+  <div class="notes">
+    <section>
+      <h2>Al borrar</h2>
+      <ul>
+        <li><code>Ticket</code> → <code>Comment</code>, <code>Attachment</code>, <code>ActivityLog</code>: <span class="tag">CASCADE</span></li>
+        <li><code>Customer</code> con tickets: <span class="tag">RESTRICT</span> (se bloquea)</li>
+        <li><code>Category</code> con tickets: <span class="tag">SET NULL</span> (propuesto)</li>
+        <li><code>User</code>: no se borra, se desactiva con <code>isActive = false</code></li>
+      </ul>
+    </section>
+    <section>
+      <h2>Índices y únicos</h2>
+      <ul>
+        <li><code>Ticket (organizationId, status, createdAt)</code>: listado filtrado</li>
+        <li><code>Ticket (organizationId, assigneeId, status)</code>: mis tickets</li>
+        <li><code>Ticket (organizationId, customerId)</code>: historial del cliente</li>
+        <li><code>Comment (ticketId, createdAt)</code>, <code>ActivityLog (ticketId, createdAt)</code>, <code>Attachment (ticketId)</code></li>
+        <li><code>Ticket (categoryId)</code>: para el <code>SET NULL</code> al borrar una categoría</li>
+        <li>Único: <code>Ticket (organizationId, number)</code>, <code>Customer (organizationId, email)</code>, <code>Category (organizationId, name)</code></li>
+      </ul>
+    </section>
+    <section>
+      <h2>Enums</h2>
+      <ul>
+        <li><code>role</code>: ADMIN, AGENT</li>
+        <li><code>status</code>: OPEN, IN_PROGRESS, RESOLVED, CLOSED</li>
+        <li><code>priority</code>: LOW, MEDIUM, HIGH, URGENT</li>
+        <li><code>action</code>: STATUS_CHANGED, ASSIGNED… (a definir)</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var W = 250, HH = 32, RH = 22;
+  var B = {
+    org:      { x: 30,   y: 40,  w: W,   tone: 'org',   name: 'Organization', rows: [
+      ['id','uuid','pk'], ['name','text',''], ['slug','text único',''], ['ticketSeq','int',''], ['createdAt','timestamptz','']] },
+    user:     { x: 30,   y: 210, w: W,   tone: 'usr',  name: 'User', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['email','text único',''], ['passwordHash','text',''],
+      ['name','text',''], ['role','enum',''], ['isActive','boolean',''], ['createdAt','timestamptz','']] },
+    customer: { x: 330,  y: 40,  w: W,   tone: 'slate', name: 'Customer', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['name','text',''], ['email','text',''],
+      ['phone','text?',''], ['createdAt','timestamptz','']] },
+    category: { x: 330,  y: 250, w: W,   tone: 'slate', name: 'Category', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['name','text','']] },
+    ticket:   { x: 660,  y: 40,  w: W,   tone: 'core',  name: 'Ticket', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['number','int',''], ['title','text',''], ['description','text',''],
+      ['status','enum',''], ['priority','enum',''], ['customerId','uuid','fk'], ['categoryId','uuid?','fk'],
+      ['assigneeId','uuid?','usr'], ['createdById','uuid','usr'], ['createdAt','timestamptz',''],
+      ['updatedAt','timestamptz',''], ['closedAt','timestamptz?','']] },
+    comment:  { x: 1010, y: 40,  w: 240, tone: 'slate', name: 'Comment', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['ticketId','uuid','fk'], ['authorId','uuid','usr'],
+      ['body','text',''], ['createdAt','timestamptz','']] },
+    attach:   { x: 1010, y: 234, w: 240, tone: 'slate', name: 'Attachment', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['ticketId','uuid','fk'], ['uploadedById','uuid','usr'],
+      ['fileName','text',''], ['contentType','text',''], ['sizeBytes','int',''], ['storageKey','text',''],
+      ['createdAt','timestamptz','']] },
+    activity: { x: 660,  y: 410, w: W,   tone: 'slate', name: 'ActivityLog', rows: [
+      ['id','uuid','pk'], ['organizationId','uuid','org'], ['ticketId','uuid','fk'], ['actorId','uuid','usr'],
+      ['action','enum',''], ['metadata','jsonb',''], ['createdAt','timestamptz','']] }
+  };
+
+  function rowY(b, i) { return b.y + HH + i * RH + RH / 2; }
+  function right(b) { return b.x + b.w; }
+
+  var s = '<svg viewBox="0 0 1280 620" role="img" aria-label="Diagrama entidad-relación de HelpDesk: un ticket pertenece a un cliente y a una categoría opcional, y tiene comentarios, adjuntos e historial; todas las tablas dependen de una organización.">';
+
+  // Lines first, so boxes paint over their ends.
+  var T = B.ticket, C = B.customer, K = B.category;
+  var yCust = rowY(T, 7), yCat = rowY(T, 8);
+  s += '<path class="ln" d="M' + right(C) + ' ' + rowY(C, 0) + ' H610 V' + yCust + ' H' + T.x + '"/>';
+  s += '<path class="ln opt" d="M' + right(K) + ' ' + rowY(K, 0) + ' H630 V' + yCat + ' H' + T.x + '"/>';
+
+  var bx = 960, yId = rowY(T, 0), yCm = rowY(B.comment, 2), yAt = rowY(B.attach, 2), yAc = rowY(B.activity, 2);
+  s += '<path class="ln" d="M' + right(T) + ' ' + yId + ' H' + bx + ' V' + yAc + ' H' + right(B.activity) + '"/>';
+  s += '<path class="ln" d="M' + bx + ' ' + yCm + ' H' + B.comment.x + '"/>';
+  s += '<path class="ln" d="M' + bx + ' ' + yAt + ' H' + B.attach.x + '"/>';
+  s += '<circle class="jn" cx="' + bx + '" cy="' + yCm + '" r="3.2"/><circle class="jn" cx="' + bx + '" cy="' + yAt + '" r="3.2"/>';
+
+  // Cardinality marks.
+  s += '<text class="card" x="' + (right(C) + 8) + '" y="' + (rowY(C, 0) - 6) + '">1</text>';
+  s += '<text class="card" x="' + (T.x - 8) + '" y="' + (yCust - 6) + '" text-anchor="end">N</text>';
+  s += '<text class="card" x="' + (right(K) + 8) + '" y="' + (rowY(K, 0) - 6) + '">1</text>';
+  s += '<text class="card" x="' + (T.x - 8) + '" y="' + (yCat + 15) + '" text-anchor="end">N</text>';
+  s += '<text class="card" x="' + (right(T) + 8) + '" y="' + (yId - 6) + '">1</text>';
+  s += '<text class="card" x="' + (B.comment.x - 8) + '" y="' + (yCm - 6) + '" text-anchor="end">N</text>';
+  s += '<text class="card" x="' + (B.attach.x - 8) + '" y="' + (yAt - 6) + '" text-anchor="end">N</text>';
+  s += '<text class="card" x="' + (right(B.activity) + 8) + '" y="' + (yAc - 6) + '">N</text>';
+
+  // Tables.
+  Object.keys(B).forEach(function (k) {
+    var b = B[k], h = HH + b.rows.length * RH;
+    s += '<g>';
+    s += '<rect class="box" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + h + '"/>';
+    s += '<rect class="h-' + b.tone + '" x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + HH + '"/>';
+    s += '<text class="hd" x="' + (b.x + 14) + '" y="' + (b.y + 21) + '">' + b.name + '</text>';
+    b.rows.forEach(function (r, i) {
+      var ry = b.y + HH + i * RH, cx = b.x + 16, cy = ry + RH / 2;
+      if (i % 2 === 1) s += '<rect class="stripe" x="' + (b.x + 0.6) + '" y="' + ry + '" width="' + (b.w - 1.2) + '" height="' + RH + '"/>';
+      if (r[2] === 'pk') s += '<polygon class="pk" points="' + cx + ',' + (cy - 4.5) + ' ' + (cx + 4.5) + ',' + cy + ' ' + cx + ',' + (cy + 4.5) + ' ' + (cx - 4.5) + ',' + cy + '"/>';
+      if (r[2] === 'org') s += '<circle class="d-org" cx="' + cx + '" cy="' + cy + '" r="4.2"/>';
+      if (r[2] === 'usr') s += '<circle class="d-usr" cx="' + cx + '" cy="' + cy + '" r="4.2"/>';
+      if (r[2] === 'fk') s += '<circle class="ring" cx="' + cx + '" cy="' + cy + '" r="3.8"/>';
+      s += '<text class="nm" x="' + (b.x + 32) + '" y="' + (ry + 15) + '">' + r[0] + '</text>';
+      s += '<text class="ty" x="' + (b.x + b.w - 12) + '" y="' + (ry + 15) + '">' + r[1] + '</text>';
+    });
+    s += '</g>';
+  });
+
+  s += '</svg>';
+  document.getElementById('er').innerHTML = s;
+})();
+</script>
